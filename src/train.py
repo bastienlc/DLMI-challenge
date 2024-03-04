@@ -4,10 +4,8 @@ import torch
 import torch.nn as nn
 from tqdm import tqdm
 
-from .data import get_data_loaders
+from .data import get_data_loaders, to_device
 from .utils import TrainLogger
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def train(
@@ -17,6 +15,7 @@ def train(
     epochs: int = 100,
     batch_size: int = 32,
     load: Union[str, None] = None,
+    device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
 ):
     logger = TrainLogger(
         model, optimizer, {"epochs": epochs, "batch_size": batch_size}, load=load
@@ -32,23 +31,53 @@ def train(
 
     for epoch in range(logger.last_epoch + 1, epochs + 1):
         model.train()
-        train_loss = 0
+        (
+            train_loss,
+            true_positives,
+            false_positives,
+            true_negatives,
+            false_negatives,
+        ) = (0, 0, 0, 0, 0)
 
         # TRAIN
         progress_bar = tqdm(train_loader, leave=False)
         for data in progress_bar:
+            data = to_device(data, device)
+            target = data[1]
             output = model(data[0])
-            loss = loss_function(output, data[1])
+            loss = loss_function(output, target)
             train_loss += loss.item()
 
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
-            progress_bar.set_postfix({"loss": f"{loss:.2E}"})
+            progress_bar.set_postfix({"loss": f"{loss/batch_size:.2E}"})
+
+            prediction = torch.argmax(output, dim=1)
+            true_positives += ((prediction == target) & (target == 1)).sum().item()
+            false_positives += ((prediction != target) & (target == 0)).sum().item()
+            true_negatives += ((prediction == target) & (target == 0)).sum().item()
+            false_negatives += ((prediction != target) & (target == 1)).sum().item()
 
         scheduler.step()
-        logger.log(epoch, train_loss=train_loss / n_train)
+
+        balanced_accuracy = (
+            (true_positives / (true_positives + false_negatives))
+            + (true_negatives / (true_negatives + false_positives))
+        ) / 2
+
+        logger.log(
+            epoch,
+            train_loss=train_loss / n_train,
+            additional_metrics={
+                "train_true_positives_rate": true_positives
+                / (true_positives + false_negatives),
+                "train_true_negatives_rate": true_negatives
+                / (true_negatives + false_positives),
+                "train_accuracy": balanced_accuracy,
+            },
+        )
 
         # EVAL
         model.eval()
@@ -61,6 +90,7 @@ def train(
                 false_negatives,
             ) = (0, 0, 0, 0, 0)
             for data in val_loader:
+                data = to_device(data, device)
                 output = model(data[0])
                 target = data[1]
                 val_loss += loss_function(output, target).item()
@@ -80,9 +110,9 @@ def train(
             val_loss=val_loss / n_val,
             val_accuracy=balanced_accuracy,
             additional_metrics={
-                "true_positives_rate": true_positives
+                "val_true_positives_rate": true_positives
                 / (true_positives + false_negatives),
-                "true_negatives_rate": true_negatives
+                "val_true_negatives_rate": true_negatives
                 / (true_negatives + false_positives),
                 "learning_rate": optimizer.param_groups[0]["lr"],
             },

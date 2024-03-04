@@ -70,12 +70,10 @@ class LymphocytosisDataset(Dataset):
         self,
         l_path,
         df,
-        device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
         split: str = "train",
     ):
         self.l_path = l_path
         self.df = df
-        self.device = device
         self.split = split
         self.transform = v2.Compose(
             [
@@ -114,10 +112,10 @@ class LymphocytosisDataset(Dataset):
             torch.save(
                 (
                     (
-                        self.transform(torch.tensor(img, device=self.device)),
-                        torch.tensor(annotations, device=self.device),
+                        self.transform(torch.tensor(img, device="cpu")),
+                        torch.tensor(annotations, device="cpu"),
                     ),
-                    torch.tensor(label, device=self.device),
+                    torch.tensor(label, device="cpu"),
                     patient_id,
                 ),
                 os.path.join(self.processed_dir, f"{idx}.pt"),
@@ -140,8 +138,20 @@ def get_data_loaders(test_size=0.2, random_state=42, shuffle=True, batch_size=16
     train_dataset = LymphocytosisDataset(train_images_paths, annotations, split="train")
     val_dataset = LymphocytosisDataset(val_images_paths, annotations, split="val")
 
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=shuffle)
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=batch_size,
+        shuffle=shuffle,
+        num_workers=4,
+        pin_memory=True,
+    )
+    val_loader = DataLoader(
+        val_dataset,
+        batch_size=batch_size,
+        shuffle=shuffle,
+        num_workers=4,
+        pin_memory=True,
+    )
 
     return train_loader, val_loader
 
@@ -152,3 +162,14 @@ def get_test_dataloader(batch_size=16):
     test_dataset = LymphocytosisDataset(images_paths, annotations, split="test")
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
     return test_loader
+
+
+def to_device(data, device):
+    return (
+        (
+            data[0][0].to(device),
+            data[0][1].to(device),
+        ),
+        data[1].to(device),
+        data[2],
+    )
