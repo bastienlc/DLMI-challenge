@@ -10,6 +10,7 @@ import torch.utils.data
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, Dataset
 from torchvision.transforms import v2
+from tqdm import tqdm
 
 from .config import CONFIG
 
@@ -70,40 +71,63 @@ class LymphocytosisDataset(Dataset):
         l_path,
         df,
         device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
-        image_transforms=v2.Compose(
+        split: str = "train",
+    ):
+        self.l_path = l_path
+        self.df = df
+        self.device = device
+        self.split = split
+        self.transform = v2.Compose(
             [
                 v2.ToDtype(torch.float32, scale=True),
                 v2.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
             ]
-        ),
-    ):
+        )
+        self.processed_dir = os.path.join(CONFIG.PATH_INPUT, "processed", self.split)
+        if not os.path.exists(self.processed_dir):
+            os.makedirs(self.processed_dir)
 
-        self.l_path = l_path
-        self.df = df
-        self.image_transforms = image_transforms
-        self.device = device
+        if self.should_process():
+            self.process()
+
+    def should_process(self):
+        return not all(
+            [
+                os.path.exists(os.path.join(self.processed_dir, f"{idx}.pt"))
+                for idx in range(len(self.l_path))
+            ]
+        )
+
+    def process(self):
+        for idx in tqdm(range(len(self.l_path)), desc="Preprocessing data"):
+            patient_id, _ = get_id_from_path(self.l_path[idx])
+            img = mpimg.imread(self.l_path[idx])
+            img = np.moveaxis(img, -1, 0)
+            annotations = self.df.loc[(self.df["ID"] == patient_id)][
+                CONFIG.cols_annotation
+            ]
+            label = self.df.loc[(self.df["ID"] == patient_id)][CONFIG.col_label].values[
+                0
+            ]
+            annotations = np.array(annotations, dtype=np.float32).squeeze()
+
+            torch.save(
+                (
+                    (
+                        self.transform(torch.tensor(img, device=self.device)),
+                        torch.tensor(annotations, device=self.device),
+                    ),
+                    torch.tensor(label, device=self.device),
+                    patient_id,
+                ),
+                os.path.join(self.processed_dir, f"{idx}.pt"),
+            )
 
     def __len__(self):
         return len(self.l_path)
 
     def __getitem__(self, idx):
-
-        if torch.is_tensor(idx):
-            idx = idx.tolist()
-
-        patient_id, _ = get_id_from_path(self.l_path[idx])
-        img = mpimg.imread(self.l_path[idx])
-        img = np.moveaxis(img, -1, 0)
-        annotations = self.df.loc[(self.df["ID"] == patient_id)][CONFIG.cols_annotation]
-        label = self.df.loc[(self.df["ID"] == patient_id)][CONFIG.col_label].values[0]
-        annotations = np.array(annotations, dtype=np.float32).squeeze()
-
-        if self.image_transforms is not None:
-            img = self.image_transforms(torch.tensor(img))
-
-        sample = img.to(self.device), torch.tensor(annotations, device=self.device)
-
-        return sample, torch.tensor(label, device=self.device), patient_id
+        return torch.load(os.path.join(self.processed_dir, f"{idx}.pt"))
 
 
 def get_data_loaders(test_size=0.2, random_state=42, shuffle=True, batch_size=16):
@@ -113,8 +137,8 @@ def get_data_loaders(test_size=0.2, random_state=42, shuffle=True, batch_size=16
         images_paths, test_size=test_size, random_state=random_state
     )
 
-    train_dataset = LymphocytosisDataset(train_images_paths, annotations)
-    val_dataset = LymphocytosisDataset(val_images_paths, annotations)
+    train_dataset = LymphocytosisDataset(train_images_paths, annotations, split="train")
+    val_dataset = LymphocytosisDataset(val_images_paths, annotations, split="val")
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=shuffle)
@@ -125,6 +149,6 @@ def get_data_loaders(test_size=0.2, random_state=42, shuffle=True, batch_size=16
 def get_test_dataloader(batch_size=16):
     annotations = preprocess_annotations(pd.read_csv(CONFIG.PATH_TS_AN))
     images_paths = get_file_paths("test")
-    test_dataset = LymphocytosisDataset(images_paths, annotations)
+    test_dataset = LymphocytosisDataset(images_paths, annotations, split="test")
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
     return test_loader

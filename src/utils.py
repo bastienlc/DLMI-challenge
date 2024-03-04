@@ -48,11 +48,13 @@ class TrainLogger:
             self.save_dir = load
 
             with open(f"{self.save_dir}/model.txt", "r") as file:
-                if file.readline() != str(model):
-                    raise ValueError("Model does not match the one saved")
+                if file.read() != str(model):
+                    raise ValueError(
+                        f"Model does not match the one saved, expected {file.read()} but got {str(model)}"
+                    )
 
             with open(f"{self.save_dir}/parameters.txt", "r") as file:
-                saved_parameters = file.readline()
+                saved_parameters = file.read()
                 if saved_parameters != str(parameters):
                     print("Warning: training resumed with different parameters.")
                     print("Saved:", saved_parameters)
@@ -144,11 +146,11 @@ def predict(model, loader):
 
 
 def save(y_pred, index, file_name="solution.csv"):
-    y_pred = pd.DataFrame(y_pred, columns=["LABEL"])
-    y_pred["ID"] = index
+    y_pred = pd.DataFrame(y_pred, columns=["Predicted"])
+    y_pred["Id"] = index
     y_pred.to_csv(
         file_name,
         index=False,
-        columns=["ID", "LABEL"],
-        header=["ID", "LABEL"],
+        columns=["Id", "Predicted"],
+        header=["Id", "Predicted"],
     )
