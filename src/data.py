@@ -83,7 +83,7 @@ class LymphocytosisDataset(Dataset):
                 v2.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
             ]
         )
-        self.processed_dir = os.path.join(CONFIG.PATH_INPUT, "processed", self.split)
+        self.processed_dir = os.path.join("./data/processed", self.split)
         if not os.path.exists(self.processed_dir):
             os.makedirs(self.processed_dir)
 
