@@ -19,8 +19,10 @@ class TrainLogger:
         parameters: Dict,
         dir="runs",
         load=None,
+        raise_on_mismatch=False,
     ):
         self.dir = dir
+        self.raise_on_mismatch = raise_on_mismatch
 
         self.train_loss = 0
         self.val_loss = 0
@@ -48,17 +50,28 @@ class TrainLogger:
             self.save_dir = load
 
             with open(f"{self.save_dir}/model.txt", "r") as file:
-                if file.read() != str(model):
-                    raise ValueError(
-                        f"Model does not match the one saved, expected {file.read()} but got {str(model)}"
-                    )
+                saved_model = file.read()
+                if saved_model != str(model):
+                    if self.raise_on_mismatch:
+                        raise AssertionError(
+                            f"Model does not match the one saved, expected {saved_model} but got {str(model)}"
+                        )
+                    else:
+                        print("Warning: training resumed with different model.")
+                        print("Saved:", saved_model)
+                        print("Current:", str(model))
 
             with open(f"{self.save_dir}/parameters.txt", "r") as file:
                 saved_parameters = file.read()
                 if saved_parameters != str(parameters):
-                    print("Warning: training resumed with different parameters.")
-                    print("Saved:", saved_parameters)
-                    print("Current:", parameters)
+                    if self.raise_on_mismatch:
+                        raise AssertionError(
+                            f"Parameters do not match the ones saved, expected {saved_parameters} but got {str(parameters)}"
+                        )
+                    else:
+                        print("Warning: training resumed with different parameters.")
+                        print("Saved:", saved_parameters)
+                        print("Current:", parameters)
 
             self.best_accuracy = 0
             with open(f"{self.save_dir}/val_accuracy.csv", "r") as file:
