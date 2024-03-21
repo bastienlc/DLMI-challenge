@@ -46,6 +46,7 @@ class BigCNN(nn.Module):
         pools=[2, 2, 2, 2],
         strides=[2, 2, 2, 2],
         hidden_dims=[512, 128],
+        dropout=0.01,
     ):
         super(BigCNN, self).__init__()
 
@@ -54,6 +55,7 @@ class BigCNN(nn.Module):
         self.pools = pools
         self.strides = strides
         self.hidden_dims = hidden_dims
+        self.dropout = nn.Dropout(dropout)
 
         self.conv_layers = nn.ModuleList()
         self.pool_layers = nn.ModuleList()
@@ -97,7 +99,7 @@ class BigCNN(nn.Module):
         image = image.view(
             image.shape[0], self.out_size * self.out_size * self.channels[-1]
         )
-        x = torch.cat((image, annotations), dim=1)
+        x = torch.cat((self.dropout(image), annotations), dim=1)
 
         for layer in self.linear_layers[:-1]:
             x = F.relu(layer(x))
