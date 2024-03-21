@@ -81,6 +81,17 @@ class LymphocytosisDataset(Dataset):
                 v2.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
             ]
         )
+        self.online_transform = v2.Compose(
+            [
+                v2.RandomHorizontalFlip(),
+                v2.RandomVerticalFlip(),
+                v2.RandomRotation(degrees=180),
+                v2.RandomResizedCrop(
+                    size=224, scale=(0.8, 1.0), antialias=True
+                ),  # images will be resized to 224x224 which is their original size
+            ]
+        )
+
         self.processed_dir = os.path.join("./data/processed", self.split)
         if not os.path.exists(self.processed_dir):
             os.makedirs(self.processed_dir)
@@ -125,7 +136,13 @@ class LymphocytosisDataset(Dataset):
         return len(self.l_path)
 
     def __getitem__(self, idx):
-        return torch.load(os.path.join(self.processed_dir, f"{idx}.pt"))
+        if self.split == "train":
+            (image, annotations), label, patient_id = torch.load(
+                os.path.join(self.processed_dir, f"{idx}.pt")
+            )
+            return (self.online_transform(image), annotations), label, patient_id
+        else:
+            return torch.load(os.path.join(self.processed_dir, f"{idx}.pt"))
 
 
 def get_data_loaders(test_size=0.2, random_state=42, shuffle=True, batch_size=16):
