@@ -14,7 +14,7 @@ class CONFIG:
     PATH_AN = os.path.join(PATH_INPUT, "clinical_annotation.csv")
     PATH_SUB = os.path.join(PATH_INPUT, "sample_submission.csv")
 
-    cols_annotation = ["GENDER", "LYMPH_COUNT", "age"]
+    cols_annotation = ["GENDER", "LYMPH_COUNT", "AGE"]
     col_label = "LABEL"
 
     SEED = 42

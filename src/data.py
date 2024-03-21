@@ -22,7 +22,7 @@ def DOB_to_age(date_str):
         bday = datetime.strptime(date_str, "%d-%m-%Y")
     current_date = datetime.now()
     age_in_days = (current_date - bday).days
-    return age_in_days
+    return age_in_days / 365.25
 
 
 def f_to_F(gender):
@@ -31,18 +31,23 @@ def f_to_F(gender):
     return gender
 
 
-def preprocess_annotations(df):
+def preprocess_annotations(df, normalize=True):
     """
     preprocessing steps on annotation csv
     """
 
     # create age
-    df["age"] = df["DOB"].apply(lambda x: DOB_to_age(x))
+    df["AGE"] = df["DOB"].apply(lambda x: DOB_to_age(x))
     df.drop(columns=["DOB"], inplace=True)
 
     # uniformize and encoder gender
     df["GENDER"] = df["GENDER"].apply(lambda x: f_to_F(x))
     df["GENDER"] = df["GENDER"].apply(lambda x: 1 if x == "F" else 0)
+
+    # min-max scaling with precomputed values
+    if normalize:
+        df["AGE"] = (df["AGE"] - 24.97) / (103.15 - 24.97)
+        df["LYMPH_COUNT"] = (df["LYMPH_COUNT"] - 2.28) / (295.0 - 2.28)
 
     return df
 
@@ -145,11 +150,11 @@ class LymphocytosisDataset(Dataset):
             return torch.load(os.path.join(self.processed_dir, f"{idx}.pt"))
 
 
-def get_data_loaders(test_size=0.2, random_state=42, shuffle=True, batch_size=16):
+def get_data_loaders(test_size=0.2, shuffle=True, batch_size=16):
     annotations = preprocess_annotations(pd.read_csv(CONFIG.PATH_TRS_AN))
     images_paths = get_file_paths("train")
     train_images_paths, val_images_paths = train_test_split(
-        images_paths, test_size=test_size, random_state=random_state
+        images_paths, test_size=test_size
     )
 
     train_dataset = LymphocytosisDataset(train_images_paths, annotations, split="train")
