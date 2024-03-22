@@ -1,3 +1,4 @@
+import glob
 import os
 import time
 from typing import Dict
@@ -7,6 +8,8 @@ import pandas as pd
 import torch
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
+
+from .config import CONFIG
 
 
 class TrainLogger:
@@ -167,3 +170,31 @@ def save(y_pred, index, file_name="solution.csv"):
         columns=["Id", "Predicted"],
         header=["Id", "Predicted"],
     )
+
+
+def get_patient_id_from_path(path):
+    """
+    return patient id from patient path
+    """
+    return path.split("/")[-1]
+
+
+def get_patients_paths(fold: str):
+    """
+    return paths of training or testing patients
+    """
+    if fold == "train":
+        paths = glob.glob(os.path.join(CONFIG.PATH_TRS, "P*"))
+    elif fold == "test":
+        paths = glob.glob(os.path.join(CONFIG.PATH_TS, "P*"))
+
+    return paths
+
+
+def get_patient_images_paths(patient_path: str):
+    """
+    return paths of images for a given patient
+    """
+    paths = glob.glob(os.path.join(patient_path, "*.jpg"))
+
+    return paths

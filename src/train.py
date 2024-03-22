@@ -12,6 +12,7 @@ def train(
     model: nn.Module,
     optimizer: torch.optim.Optimizer,
     scheduler: torch.optim.lr_scheduler._LRScheduler,
+    dataset: torch.utils.data.Dataset,
     epochs: int = 100,
     batch_size: int = 32,
     load: Union[str, None] = None,
@@ -25,7 +26,7 @@ def train(
 
     loss_function = torch.nn.CrossEntropyLoss()
 
-    train_loader, val_loader = get_data_loaders(batch_size=batch_size)
+    train_loader, val_loader = get_data_loaders(batch_size=batch_size, dataset=dataset)
     n_train = len(train_loader.dataset)
     n_val = len(val_loader.dataset)
 
@@ -43,8 +44,8 @@ def train(
         progress_bar = tqdm(train_loader, leave=False)
         for data in progress_bar:
             data = to_device(data, device)
-            target = data[1]
-            output = model(data[0])
+            target = data[-1]
+            output = model(data[0:-1])
             loss = loss_function(output, target)
             train_loss += loss.item()
 
@@ -91,8 +92,8 @@ def train(
             ) = (0, 0, 0, 0, 0)
             for data in val_loader:
                 data = to_device(data, device)
-                output = model(data[0])
-                target = data[1]
+                output = model(data[0:-1])
+                target = data[-1]
                 val_loss += loss_function(output, target).item()
                 prediction = torch.argmax(output, dim=1)
                 true_positives += ((prediction == target) & (target == 1)).sum().item()
