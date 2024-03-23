@@ -11,25 +11,28 @@ from torchvision.transforms import v2
 from tqdm import tqdm
 
 from ..config import CONFIG
-from ..utils import get_patient_id_from_patient_path, get_patient_images_paths
+from ..utils import (
+    get_patient_id_from_image_path,
+    get_patient_id_from_patient_path,
+    get_patient_images_paths,
+)
 
 
-class PerPatientDataset(Dataset):
+class CustomLabelsDataset(Dataset):
     def __init__(
         self,
         patients_paths: List[str],
         df: pd.DataFrame,
+        device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
         split: str = "train",
-        name: str = "per_patient",
+        name="manual",
         image_crop_size=150,
-        max_images: int = 64,
     ):
         self.patients_paths = patients_paths
         self.df = df
+        self.device = device
         self.split = split
         self.name = name
-        self.max_images = max_images
-
         self.transform = v2.Compose(
             [
                 v2.ToDtype(torch.float32, scale=True),
@@ -48,11 +51,9 @@ class PerPatientDataset(Dataset):
         else:
             self.online_transform = v2.Compose([v2.CenterCrop(image_crop_size)])
 
-        self.num_images = np.zeros(len(self.patients_paths), dtype=int)
-        for idx in range(len(self.patients_paths)):
-            self.num_images[idx] = len(
-                get_patient_images_paths(self.patients_paths[idx])
-            )
+        self.paths = self.get_paths(
+            pd.read_csv(os.path.join(CONFIG.PATH_INPUT, "custom_positives.csv"))
+        )
 
         self.processed_dir = os.path.join("./data", "processed", self.name, self.split)
         if not os.path.exists(self.processed_dir):
@@ -61,17 +62,35 @@ class PerPatientDataset(Dataset):
         if self.should_process():
             self.process()
 
+    def get_paths(self, positives: pd.DataFrame):
+        paths = []
+        self.positive_images_paths = [
+            os.path.join(CONFIG.PATH_TRS, patient_id, image_name)
+            for patient_id, image_name in zip(positives["patient"], positives["image"])
+        ]
+        for k in range(len(self.patients_paths)):
+            patient_id = get_patient_id_from_patient_path(self.patients_paths[k])
+            label = self.df.loc[(self.df["ID"] == patient_id)][CONFIG.col_label].values[
+                0
+            ]
+            patient_paths = get_patient_images_paths(self.patients_paths[k])
+            for path in patient_paths:
+                if label == 0 or path in self.positive_images_paths:
+                    paths.append(path)
+        return paths
+
     def should_process(self):
         return not all(
             [
                 os.path.exists(os.path.join(self.processed_dir, f"{idx}.pt"))
-                for idx in range(len(self.patients_paths))
+                for idx in range(len(self.paths))
             ]
         )
 
     def process(self):
-        for idx in tqdm(range(len(self.patients_paths)), desc="Preprocessing data"):
-            patient_id = get_patient_id_from_patient_path(self.patients_paths[idx])
+        for idx, path in enumerate(tqdm(self.paths, desc="Preprocessing data")):
+            patient_id = get_patient_id_from_image_path(path)
+            number_id = int(patient_id[1:])
             annotations = self.df.loc[(self.df["ID"] == patient_id)][
                 CONFIG.cols_annotation
             ]
@@ -80,67 +99,27 @@ class PerPatientDataset(Dataset):
             ]
             annotations = np.array(annotations, dtype=np.float32).squeeze()
 
-            patient_images_paths = get_patient_images_paths(self.patients_paths[idx])
-            patient_images = np.zeros(
-                (len(patient_images_paths), 3, 224, 224), dtype=np.float32
-            )
-
-            for k, img_path in enumerate(patient_images_paths):
-                img = mpimg.imread(img_path)
-                img = np.moveaxis(img, -1, 0)
-                patient_images[k] = img
+            img = mpimg.imread(path)
+            img = np.moveaxis(img, -1, 0)
+            img = img.astype(np.float32)
 
             torch.save(
                 (
-                    self.transform(torch.tensor(patient_images, device="cpu")),
+                    self.transform(torch.tensor(img, device="cpu")),
                     torch.tensor(annotations, device="cpu"),
+                    torch.tensor(number_id, device="cpu"),
                     torch.tensor(label, device="cpu"),
                 ),
                 os.path.join(self.processed_dir, f"{idx}.pt"),
             )
 
     def __len__(self):
-        return len(self.patients_paths)
+        return len(self.paths)
 
     def __getitem__(self, idx):
-        images, annotations, label = torch.load(
+        image, annotations, patient_id, label = torch.load(
             os.path.join(self.processed_dir, f"{idx}.pt")
         )
-        if len(images) > self.max_images:
-            indices = np.random.choice(len(images), self.max_images, replace=False)
-            images = images[indices]
+        image = self.online_transform(image)
 
-        transformed_images = []
-        for img in images:
-            transformed_images.append(self.online_transform(img))
-
-        return (
-            torch.stack(transformed_images),
-            annotations,
-            torch.zeros(images.shape[0], dtype=torch.long),
-            label,
-        )
-
-
-def batch_from_data_list(data_list: List[torch.LongTensor]):
-    cumulated = -1
-    result = []
-    for batch in data_list:
-        previous = None
-        for i in batch:
-            if i != previous:
-                cumulated += 1
-                previous = i
-            result.append(cumulated)
-
-    return torch.tensor(result, dtype=torch.long)
-
-
-def collate(data):
-    images, annotations, batch, labels = zip(*data)
-    return (
-        torch.concatenate(images),
-        torch.stack(annotations),
-        batch_from_data_list(batch),
-        torch.stack(labels),
-    )
+        return image, annotations, patient_id, label

@@ -5,6 +5,7 @@ from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
 
 from .config import CONFIG
+from .datasets.custom_labels import CustomLabelsDataset
 from .datasets.per_image import PerImageDataset
 from .datasets.per_patient import PerPatientDataset, collate
 from .utils import get_patients_paths
@@ -52,14 +53,18 @@ def get_data_loaders(
 ):
     annotations = preprocess_annotations(pd.read_csv(CONFIG.PATH_TRS_AN))
     patients_paths = get_patients_paths("train")
-    train_paths, val_paths = train_test_split(patients_paths, test_size=test_size)
+    train_paths, val_paths = train_test_split(
+        patients_paths, test_size=test_size, random_state=CONFIG.SEED
+    )
 
     train_dataset = dataset(train_paths, annotations, split="train")
     val_dataset = dataset(val_paths, annotations, split="val")
 
     if issubclass(dataset, PerPatientDataset):
         collate_fn = collate
-    elif issubclass(dataset, PerImageDataset):
+    elif issubclass(dataset, PerImageDataset) or issubclass(
+        dataset, CustomLabelsDataset
+    ):
         collate_fn = None
     else:
         raise ValueError("Unknown dataset")
@@ -91,7 +96,9 @@ def get_test_dataloader(batch_size=16, dataset=PerPatientDataset):
 
     if issubclass(dataset, PerPatientDataset):
         collate_fn = collate
-    elif issubclass(dataset, PerImageDataset):
+    elif issubclass(dataset, PerImageDataset) or issubclass(
+        dataset, CustomLabelsDataset
+    ):
         collate_fn = None
     else:
         raise ValueError("Unknown dataset")

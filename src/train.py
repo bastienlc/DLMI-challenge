@@ -16,6 +16,7 @@ def train(
     epochs: int = 100,
     batch_size: int = 32,
     load: Union[str, None] = None,
+    ratio: float = 1,
     device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
 ):
     logger = TrainLogger(
@@ -24,7 +25,9 @@ def train(
 
     model, optimizer = logger.load(model, optimizer)
 
-    loss_function = torch.nn.CrossEntropyLoss()
+    loss_function = torch.nn.CrossEntropyLoss(
+        weight=torch.tensor([1, ratio], dtype=torch.float32).to(device), reduction="sum"
+    )
 
     train_loader, val_loader = get_data_loaders(batch_size=batch_size, dataset=dataset)
     n_train = len(train_loader.dataset)
@@ -63,7 +66,7 @@ def train(
 
         scheduler.step()
 
-        balanced_accuracy = (
+        train_balanced_accuracy = (
             (true_positives / (true_positives + false_negatives))
             + (true_negatives / (true_negatives + false_positives))
         ) / 2
@@ -76,7 +79,7 @@ def train(
                 / (true_positives + false_negatives),
                 "train_true_negatives_rate": true_negatives
                 / (true_negatives + false_positives),
-                "train_accuracy": balanced_accuracy,
+                "train_accuracy": train_balanced_accuracy,
             },
         )
 
@@ -101,7 +104,7 @@ def train(
                 true_negatives += ((prediction == target) & (target == 0)).sum().item()
                 false_negatives += ((prediction != target) & (target == 1)).sum().item()
 
-        balanced_accuracy = (
+        val_balanced_accuracy = (
             (true_positives / (true_positives + false_negatives))
             + (true_negatives / (true_negatives + false_positives))
         ) / 2
@@ -109,7 +112,7 @@ def train(
         logger.log(
             epoch,
             val_loss=val_loss / n_val,
-            val_accuracy=balanced_accuracy,
+            val_accuracy=val_balanced_accuracy,
             additional_metrics={
                 "val_true_positives_rate": true_positives
                 / (true_positives + false_negatives),
@@ -118,7 +121,10 @@ def train(
                 "learning_rate": optimizer.param_groups[0]["lr"],
             },
         )
-        logger.save(model, optimizer, val_accuracy=balanced_accuracy)
-        logger.print(epoch)
+        logger.save(model, optimizer, val_accuracy=val_balanced_accuracy)
+        logger.print(
+            epoch,
+            special={"train_accuracy": train_balanced_accuracy},
+        )
 
     return model

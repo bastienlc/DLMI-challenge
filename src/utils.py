@@ -141,10 +141,11 @@ class TrainLogger:
         optimizer.load_state_dict(torch.load(f"{self.save_dir}/optimizer.pt"))
         return model, optimizer
 
-    def print(self, epoch):
-        print(
-            f"Epoch {epoch}: train_loss={self.train_loss:.2E}, val_loss={self.val_loss:.2E}, val_accuracy={self.val_accuracy:.2f}",
-        )
+    def print(self, epoch, special):
+        message = f"Epoch {epoch}: train_loss={self.train_loss:.2E}, val_loss={self.val_loss:.2E}, val_accuracy={self.val_accuracy:.2f}"
+        for key, value in special.items():
+            message += f", {key}={value:.2f}"
+        print(message)
 
     def __del__(self):
         self.summary_writer.flush()
@@ -172,11 +173,18 @@ def save(y_pred, index, file_name="solution.csv"):
     )
 
 
-def get_patient_id_from_path(path):
+def get_patient_id_from_patient_path(path):
     """
     return patient id from patient path
     """
     return path.split("/")[-1]
+
+
+def get_patient_id_from_image_path(path):
+    """
+    return patient id from patient path
+    """
+    return path.split("/")[-2]
 
 
 def get_patients_paths(fold: str):

@@ -10,7 +10,7 @@ from torchvision.transforms import v2
 from tqdm import tqdm
 
 from ..config import CONFIG
-from ..utils import get_patient_id_from_path, get_patient_images_paths
+from ..utils import get_patient_id_from_patient_path, get_patient_images_paths
 
 
 class PerImageDataset(Dataset):
@@ -70,7 +70,7 @@ class PerImageDataset(Dataset):
     def process(self):
         idx = 0
         for k in tqdm(range(len(self.patients_paths)), desc="Preprocessing data"):
-            patient_id = get_patient_id_from_path(self.patients_paths[k])
+            patient_id = get_patient_id_from_patient_path(self.patients_paths[k])
             number_id = int(patient_id[1:])
             annotations = self.df.loc[(self.df["ID"] == patient_id)][
                 CONFIG.cols_annotation
@@ -84,6 +84,7 @@ class PerImageDataset(Dataset):
             for _, img_path in enumerate(patient_images_paths):
                 img = mpimg.imread(img_path)
                 img = np.moveaxis(img, -1, 0)
+                img = img.astype(np.float32)
 
                 torch.save(
                     (
@@ -100,10 +101,10 @@ class PerImageDataset(Dataset):
         return self.num_images.sum()
 
     def __getitem__(self, idx):
-        images, annotations, patient_id, label = torch.load(
+        image, annotations, patient_id, label = torch.load(
             os.path.join(self.processed_dir, f"{idx}.pt")
         )
 
-        images = self.online_transform(images)
+        image = self.online_transform(image)
 
-        return images, annotations, patient_id, label
+        return image, annotations, patient_id, label
