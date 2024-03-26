@@ -4,8 +4,8 @@ import torch
 import torch.nn as nn
 from tqdm import tqdm
 
-from .data import get_data_loaders, to_device
-from .utils import TrainLogger
+from .data import get_data_loaders
+from .utils import TrainLogger, to_device
 
 
 def train(

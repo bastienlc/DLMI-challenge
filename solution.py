@@ -1,36 +1,26 @@
-import numpy as np
 import torch
 
-from src.data import get_test_dataloader, to_device
-from src.models.cnn import SimpleCNN
-from src.utils import save
+from src.data import get_test_dataloader
+from src.models.moe import MOEModel
+from src.utils import (
+    get_patient_id_from_patient_path,
+    get_patients_paths,
+    predict,
+    save,
+)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-name = "randomize"
+name = "segment"
 
-model = SimpleCNN().to(device)
+model = MOEModel().to(device)
 model.load_state_dict(torch.load(f"runs/{name}/model.pt"))
 model.eval()
 test_loader = get_test_dataloader(batch_size=256)
 
-with torch.no_grad():
-    y_pred = {}
-    for data in test_loader:
-        data = to_device(data, device)
-        output = model(data[0])
-        prediction = output.argmax(1).cpu().numpy()
-        for i, id in enumerate(data[2]):
-            try:
-                y_pred[id].append(prediction[i])
-            except KeyError:
-                y_pred[id] = [prediction[i]]
+predictions = predict(model, test_loader, device)
 
-# Take the most frequent prediction for each patient
-for id in y_pred:
-    y_pred[id] = np.bincount(y_pred[id]).argmax()
+patients_paths = get_patients_paths("test")
+index = [get_patient_id_from_patient_path(path) for path in patients_paths]
 
-index = [id for id in sorted(y_pred.keys())]
-y_pred = np.array([y_pred[id] for id in sorted(y_pred.keys())])
-
-save(y_pred, index)
+save(predictions, index)

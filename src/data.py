@@ -107,13 +107,3 @@ def get_test_dataloader(batch_size=16, dataset=PerPatientDataset):
         test_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn
     )
     return test_loader
-
-
-def to_device(data, device):
-    images, annotations, batch, labels = data
-    return (
-        images.to(device),
-        annotations.to(device),
-        batch.to(device),
-        labels.to(device),
-    )

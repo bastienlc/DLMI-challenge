@@ -162,14 +162,25 @@ class TrainLogger:
         self.summary_writer.close()
 
 
-def predict(model, loader):
+def to_device(data, device):
+    images, annotations, batch, labels = data
+    return (
+        images.to(device),
+        annotations.to(device),
+        batch.to(device),
+        labels.to(device),
+    )
+
+
+def predict(model, loader, device):
     model.eval()
+    predictions = []
     with torch.no_grad():
-        y_pred = []
-        for data in tqdm(loader):
-            output = model(data[0])
-            y_pred.append(output.argmax(1).cpu().numpy())
-    return np.concatenate(y_pred)
+        for data in loader:
+            data = to_device(data, device)
+            output = model(data[0:-1])
+            predictions.append(torch.argmax(output, dim=1).cpu().numpy())
+    return np.concatenate(predictions)
 
 
 def save(y_pred, index, file_name="solution.csv"):
