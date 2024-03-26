@@ -40,7 +40,7 @@ class PerPatientDataset(Dataset):
         name: str = "per_patient",
         image_crop_size=112,
         max_images: int = None,
-        segment: bool = True,
+        segment: bool = False,
     ):
         self.patients_paths = patients_paths
         self.df = df

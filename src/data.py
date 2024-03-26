@@ -52,9 +52,15 @@ def get_data_loaders(
     test_size=0.2, shuffle=True, batch_size=16, dataset=PerPatientDataset
 ):
     annotations = preprocess_annotations(pd.read_csv(CONFIG.PATH_TRS_AN))
+    annotations.sort_values("ID", inplace=True)
     patients_paths = get_patients_paths("train")
+    patients_paths.sort()
+
     train_paths, val_paths = train_test_split(
-        patients_paths, test_size=test_size, random_state=CONFIG.SEED
+        patients_paths,
+        test_size=test_size,
+        random_state=CONFIG.SEED,
+        stratify=annotations[CONFIG.col_label].values,
     )
 
     train_dataset = dataset(train_paths, annotations, split="train")
