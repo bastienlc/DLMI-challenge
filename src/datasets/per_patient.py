@@ -4,6 +4,7 @@ from typing import List
 import matplotlib.image as mpimg
 import numpy as np
 import pandas as pd
+import ray
 import torch
 import torch.utils.data
 from torch.utils.data import Dataset
@@ -15,7 +16,19 @@ from ..utils import (
     RandomDiscreteRotation,
     get_patient_id_from_patient_path,
     get_patient_images_paths,
+    segment_lymphocyt,
 )
+
+ray.init(num_cpus=12, logging_level="error")
+
+
+@ray.remote  # data parallelism for slow segmentation preprocessing (~10x speedup)
+def process_image(img_path, segment):
+    img = mpimg.imread(img_path)
+    if segment:
+        img = segment_lymphocyt(img)
+    img = np.moveaxis(img, -1, 0)
+    return img
 
 
 class PerPatientDataset(Dataset):
@@ -27,12 +40,14 @@ class PerPatientDataset(Dataset):
         name: str = "per_patient",
         image_crop_size=112,
         max_images: int = None,
+        segment: bool = True,
     ):
         self.patients_paths = patients_paths
         self.df = df
         self.split = split
         self.name = name
         self.max_images = max_images
+        self.segment = segment
 
         self.transform = v2.Compose(
             [
@@ -85,14 +100,12 @@ class PerPatientDataset(Dataset):
             annotations = np.array(annotations, dtype=np.float32).squeeze()
 
             patient_images_paths = get_patient_images_paths(self.patients_paths[idx])
-            patient_images = np.zeros(
-                (len(patient_images_paths), 3, 224, 224), dtype=np.float32
-            )
 
-            for k, img_path in enumerate(patient_images_paths):
-                img = mpimg.imread(img_path)
-                img = np.moveaxis(img, -1, 0)
-                patient_images[k] = img
+            ids = [
+                process_image.remote(path, segment=self.segment)
+                for path in patient_images_paths
+            ]
+            patient_images = np.stack(ray.get(ids), axis=0, dtype=np.float32)
 
             torch.save(
                 (

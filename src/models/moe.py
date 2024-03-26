@@ -27,6 +27,10 @@ class ConvolutionalNetwork(nn.Module):
         self.encoder5 = ConvolutionalNetwork._block(
             features * 8, features * 16, name="enc5"
         )
+        self.pool5 = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.encoder6 = ConvolutionalNetwork._block(
+            features * 16, features * 32, name="enc6"
+        )
 
     def forward(self, x):
         enc1 = self.encoder1(x)
@@ -35,7 +39,7 @@ class ConvolutionalNetwork(nn.Module):
         enc4 = self.encoder4(self.pool3(enc3))
         enc5 = self.encoder5(self.pool4(enc4))
 
-        return enc5
+        return self.encoder6(self.pool5(enc5))
 
     @staticmethod
     def _block(in_channels, features, name):
@@ -76,13 +80,14 @@ class GatingNetwork(nn.Module):
         super(GatingNetwork, self).__init__()
         self.conv = nn.Conv2d(maps, 1, kernel_size=1, padding=0, stride=1)
         self.linear = nn.Linear(width * height + len(CONFIG.cols_annotation), 2)
+        self.dropout = nn.Dropout(0.1)
 
     def forward(self, features_maps, annotations):
         features_maps = torch.tanh(self.conv(features_maps))
         input = torch.cat(
             (features_maps.reshape(features_maps.size(0), -1), annotations), dim=-1
         )
-        probs = torch.softmax(self.linear(input), dim=-1)
+        probs = torch.softmax(self.linear(self.dropout(input)), dim=-1)
         return probs[:, [0]]
 
 
@@ -100,8 +105,8 @@ class MOEModel(nn.Module):
     def __init__(self):
         super(MOEModel, self).__init__()
         self.cnn = ConvolutionalNetwork()
-        self.cnn_classifier = ClassifierNetwork(128, 7, 7)
-        self.gate = GatingNetwork(128, 7, 7)
+        self.cnn_classifier = ClassifierNetwork(256, 3, 3)
+        self.gate = GatingNetwork(256, 3, 3)
         self.mlp = nn.Sequential(
             nn.Linear(len(CONFIG.cols_annotation), 2),
             nn.Sigmoid(),

@@ -17,8 +17,9 @@ model = train(
     optimizer,
     scheduler,
     PerPatientDataset,
-    epochs=100,
-    batch_size=4,
+    epochs=1000,
+    batch_size=8,
     device=device,
+    ratio=2,
     load=load,
 )

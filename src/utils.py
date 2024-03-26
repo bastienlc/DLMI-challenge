@@ -4,10 +4,18 @@ import random
 import time
 from typing import Dict, List
 
+import cv2
 import numpy as np
 import pandas as pd
 import torch
 import torchvision.transforms.functional as TF
+from PIL import Image
+from skimage.morphology import (
+    area_closing,
+    area_opening,
+    binary_dilation,
+    convex_hull_image,
+)
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
@@ -217,3 +225,33 @@ class RandomDiscreteRotation:
     def __call__(self, x):
         angle = random.choice(self.angles)
         return TF.rotate(x, angle)
+
+
+def segment_lymphocyt(image: np.ndarray) -> np.ndarray:
+    saturation = cv2.cvtColor(image.astype(np.float32), cv2.COLOR_BGR2HSV)[:, :, 1]
+
+    _, label, center = cv2.kmeans(
+        saturation.reshape((-1)),
+        2,
+        None,
+        (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1),
+        1,
+        cv2.KMEANS_PP_CENTERS,
+    )
+
+    # segmentation
+    segmented = center[label.flatten()]
+    segmented = (segmented == np.max(segmented)).reshape(image.shape[:2])
+
+    # postprocessing
+    segmented = area_closing(segmented, area_threshold=50)
+    segmented = binary_dilation(segmented, footprint=np.ones((10, 10)))
+    segmented = area_opening(segmented, area_threshold=500)
+    segmented = convex_hull_image(segmented)
+
+    # add background
+    background = np.zeros_like(image)
+    background[:, :] = [255, 229, 202]
+    segmented = image * segmented[:, :, None] + background * (1 - segmented[:, :, None])
+
+    return segmented
