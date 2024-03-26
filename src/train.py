@@ -26,7 +26,8 @@ def train(
     model, optimizer = logger.load(model, optimizer)
 
     loss_function = torch.nn.CrossEntropyLoss(
-        weight=torch.tensor([1, ratio], dtype=torch.float32).to(device), reduction="sum"
+        weight=torch.tensor([1, ratio], dtype=torch.float32).to(device),
+        reduction="mean",
     )
 
     train_loader, val_loader = get_data_loaders(batch_size=batch_size, dataset=dataset)
