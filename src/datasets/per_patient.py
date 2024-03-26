@@ -11,7 +11,11 @@ from torchvision.transforms import v2
 from tqdm import tqdm
 
 from ..config import CONFIG
-from ..utils import get_patient_id_from_patient_path, get_patient_images_paths
+from ..utils import (
+    RandomDiscreteRotation,
+    get_patient_id_from_patient_path,
+    get_patient_images_paths,
+)
 
 
 class PerPatientDataset(Dataset):
@@ -21,8 +25,8 @@ class PerPatientDataset(Dataset):
         df: pd.DataFrame,
         split: str = "train",
         name: str = "per_patient",
-        image_crop_size=150,
-        max_images: int = 64,
+        image_crop_size=112,
+        max_images: int = None,
     ):
         self.patients_paths = patients_paths
         self.df = df
@@ -34,6 +38,7 @@ class PerPatientDataset(Dataset):
             [
                 v2.ToDtype(torch.float32, scale=True),
                 v2.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+                v2.CenterCrop(image_crop_size),
             ]
         )
         if self.split == "train":
@@ -41,12 +46,11 @@ class PerPatientDataset(Dataset):
                 [
                     v2.RandomHorizontalFlip(),
                     v2.RandomVerticalFlip(),
-                    v2.RandomRotation(degrees=180),
-                    v2.CenterCrop(image_crop_size),
+                    RandomDiscreteRotation([0, 90, 180, 270]),
                 ]
             )
         else:
-            self.online_transform = v2.Compose([v2.CenterCrop(image_crop_size)])
+            self.online_transform = v2.Compose([v2.Identity()])
 
         self.num_images = np.zeros(len(self.patients_paths), dtype=int)
         for idx in range(len(self.patients_paths)):
@@ -106,7 +110,7 @@ class PerPatientDataset(Dataset):
         images, annotations, label = torch.load(
             os.path.join(self.processed_dir, f"{idx}.pt")
         )
-        if len(images) > self.max_images:
+        if self.max_images is not None and len(images) > self.max_images:
             indices = np.random.choice(len(images), self.max_images, replace=False)
             images = images[indices]
 

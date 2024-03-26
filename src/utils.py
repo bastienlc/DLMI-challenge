@@ -1,11 +1,13 @@
 import glob
 import os
+import random
 import time
-from typing import Dict
+from typing import Dict, List
 
 import numpy as np
 import pandas as pd
 import torch
+import torchvision.transforms.functional as TF
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
@@ -206,3 +208,12 @@ def get_patient_images_paths(patient_path: str):
     paths = glob.glob(os.path.join(patient_path, "*.jpg"))
 
     return paths
+
+
+class RandomDiscreteRotation:
+    def __init__(self, angles: List[int]):
+        self.angles = angles
+
+    def __call__(self, x):
+        angle = random.choice(self.angles)
+        return TF.rotate(x, angle)

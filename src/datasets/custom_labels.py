@@ -12,6 +12,7 @@ from tqdm import tqdm
 
 from ..config import CONFIG
 from ..utils import (
+    RandomDiscreteRotation,
     get_patient_id_from_image_path,
     get_patient_id_from_patient_path,
     get_patient_images_paths,
@@ -26,17 +27,19 @@ class CustomLabelsDataset(Dataset):
         device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
         split: str = "train",
         name="manual",
-        image_crop_size=150,
+        image_crop_size=112,
     ):
         self.patients_paths = patients_paths
         self.df = df
         self.device = device
         self.split = split
         self.name = name
+
         self.transform = v2.Compose(
             [
                 v2.ToDtype(torch.float32, scale=True),
                 v2.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+                v2.CenterCrop(image_crop_size),
             ]
         )
         if self.split == "train":
@@ -44,12 +47,11 @@ class CustomLabelsDataset(Dataset):
                 [
                     v2.RandomHorizontalFlip(),
                     v2.RandomVerticalFlip(),
-                    v2.RandomRotation(degrees=180),
-                    v2.CenterCrop(image_crop_size),
+                    RandomDiscreteRotation([0, 90, 180, 270]),
                 ]
             )
         else:
-            self.online_transform = v2.Compose([v2.CenterCrop(image_crop_size)])
+            self.online_transform = v2.Compose([v2.Identity()])
 
         self.paths = self.get_paths(
             pd.read_csv(os.path.join(CONFIG.PATH_INPUT, "custom_positives.csv"))
