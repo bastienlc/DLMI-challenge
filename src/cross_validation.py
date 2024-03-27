@@ -4,7 +4,9 @@ from sklearn.base import BaseEstimator
 from sklearn.metrics import balanced_accuracy_score
 from sklearn.model_selection import StratifiedKFold
 
-from src.config import CONFIG
+from style import COLORS
+
+from .config import CONFIG
 
 
 def custom_cross_validate(model: BaseEstimator, X: np.ndarray, y: np.ndarray, k_fold=5):
@@ -35,15 +37,38 @@ def custom_cross_validate(model: BaseEstimator, X: np.ndarray, y: np.ndarray, k_
 
 
 def plot_comparison(models_scores, labels):
-    _, ax = plt.subplots(figsize=(20, 10))
-    ax.boxplot(models_scores, labels=labels, meanline=True, showmeans=True)
-    ax.hlines(
-        0.85714, 0, len(models_scores) + 1, linestyles="dashed", label="Reference score"
+    _, ax = plt.subplots(figsize=(40, 20))
+    box_plot = ax.boxplot(
+        models_scores,
+        labels=labels,
+        meanline=True,
+        showmeans=True,
+        patch_artist=True,
+        boxprops=dict(facecolor="lightpink"),
     )
+    for median in box_plot["medians"]:
+        median.set_color(COLORS[3])
+        median.set_linewidth(2)
+    for mean in box_plot["means"]:
+        mean.set_color(COLORS[6])
+        mean.set_linewidth(2)
+        mean.set_linestyle("solid")
+    ax.hlines(
+        0.85714,
+        0,
+        len(models_scores) + 1,
+        linestyles="dashed",
+        label="Baseline test score",
+        color=COLORS[9],
+    )
+    ax.plot([], [], color=COLORS[3], label="Median")
+    ax.plot([], [], color=COLORS[6], label="Mean")
     ax.set_yticks(np.arange(0, 1.1, 0.05))
-    ax.set_ylim(0, 1.0)
+    ax.set_ylim(0.5, 1.0)
     plt.xticks(rotation=45, ha="right", rotation_mode="anchor")
     plt.legend()
+    plt.tight_layout()
+    plt.savefig("report/figures/unsupervised_classification_models.png")
     plt.show()
 
 
