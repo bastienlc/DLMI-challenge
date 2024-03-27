@@ -3,3 +3,4 @@ runs
 solution.csv
 data
 *.csv
+.cache
