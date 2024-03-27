@@ -2,7 +2,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.base import BaseEstimator
 from sklearn.metrics import balanced_accuracy_score
-from sklearn.model_selection import cross_validate
+from sklearn.model_selection import StratifiedKFold
+
+from src.config import CONFIG
 
 
 def custom_cross_validate(model: BaseEstimator, X: np.ndarray, y: np.ndarray, k_fold=5):
@@ -10,9 +12,24 @@ def custom_cross_validate(model: BaseEstimator, X: np.ndarray, y: np.ndarray, k_
         y_pred = model.predict(X)
         return balanced_accuracy_score(y, y_pred)
 
-    scores = cross_validate(
-        model, X, y, cv=k_fold, scoring=scoring_function, return_train_score=True
-    )
+    folder = StratifiedKFold(n_splits=k_fold, shuffle=True, random_state=CONFIG.SEED)
+
+    for i, (train_index, test_index) in enumerate(folder.split(X, y)):
+        X_train, X_test = X[train_index], X[test_index]
+        y_train, y_test = y[train_index], y[test_index]
+
+        model.fit(X_train, y_train)
+        train_score = scoring_function(model, X_train, y_train)
+        test_score = scoring_function(model, X_test, y_test)
+
+        if i == 0:
+            scores = {
+                "train_score": [train_score],
+                "test_score": [test_score],
+            }
+        else:
+            scores["train_score"].append(train_score)
+            scores["test_score"].append(test_score)
 
     return scores["train_score"], scores["test_score"]
 
@@ -36,7 +53,6 @@ def compare_models(models, X, y, k_fold=5, plot=True, verbose=False):
     for k, (model, model_name) in enumerate(models):
         print(
             f"Evaluating model {k+1}/{len(models)} ({model_name})",
-            end="\r",
         )
         try:
             _, validation_scores = custom_cross_validate(model, X, y, k_fold=k_fold)
