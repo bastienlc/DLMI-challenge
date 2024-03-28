@@ -20,6 +20,9 @@ def train(
     device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
     loaders: Union[None, torch.utils.data.DataLoader] = None,
 ):
+    """
+    Main training loop. This function does everything from loading the data to saving the model. If a loader is passed, it will use that one (for cross-validation).
+    """
     logger = TrainLogger(
         model, optimizer, {"epochs": epochs, "batch_size": batch_size}, load=load
     )

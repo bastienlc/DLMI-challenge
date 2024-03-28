@@ -6,7 +6,7 @@ import torch
 from src.data import get_test_dataloader
 from src.datasets.per_image import PerImageDataset
 from src.datasets.per_patient import PerPatientDataset
-from src.models.moe import MOEModel
+from src.models.moe import MixtureOfExperts
 from src.utils import (
     get_patient_id_from_patient_path,
     get_patients_paths,
@@ -58,7 +58,7 @@ def predict(model, dataset, device):
 if __name__ == "__main__":
     dataset = PerPatientDataset
     name = "mixture_of_experts"
-    model = MOEModel().to(device)
+    model = MixtureOfExperts().to(device)
 
     model.load_state_dict(torch.load(f"runs/{name}/model.pt"))
     model.eval()

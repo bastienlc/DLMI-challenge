@@ -1,2 +1,2 @@
 from .baseline import Baseline
-from .moe import MOEModel
+from .moe import MixtureOfExperts

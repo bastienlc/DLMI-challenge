@@ -1,3 +1,7 @@
+"""
+Baseline model.
+"""
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -6,6 +10,10 @@ from ..config import CONFIG
 
 
 class Baseline(nn.Module):
+    """
+    Baseline model. It is a simple CNN with three fully connected layers at the end.
+    """
+
     def __init__(self):
         super(Baseline, self).__init__()
         self.conv1 = nn.Conv2d(3, 6, 5)

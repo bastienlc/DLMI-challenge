@@ -9,6 +9,10 @@ from .style import COLORS
 
 
 def custom_cross_validate(model: BaseEstimator, X: np.ndarray, y: np.ndarray, k_fold=5):
+    """
+    Cross validate a model using balanced accuracy as scoring function. The splits are stratified.
+    """
+
     def scoring_function(model, X, y):
         y_pred = model.predict(X)
         return balanced_accuracy_score(y, y_pred)
@@ -36,6 +40,9 @@ def custom_cross_validate(model: BaseEstimator, X: np.ndarray, y: np.ndarray, k_
 
 
 def plot_comparison(models_scores, labels):
+    """
+    Plot a boxplot of the scores of the models.
+    """
     _, ax = plt.subplots(figsize=(20, 10))
     box_plot = ax.boxplot(
         models_scores,
@@ -72,6 +79,9 @@ def plot_comparison(models_scores, labels):
 
 
 def compare_models(models, X, y, k_fold=5, plot=True, verbose=False):
+    """
+    Compare machine learning models using cross validation.
+    """
     labels = []
     models_scores = []
     for k, (model, model_name) in enumerate(models):

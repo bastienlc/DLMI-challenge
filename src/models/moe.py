@@ -1,3 +1,7 @@
+"""
+Mixture of experts model.
+"""
+
 from collections import OrderedDict
 
 import torch
@@ -8,6 +12,10 @@ from ..config import CONFIG
 
 
 class ConvolutionalNetwork(nn.Module):
+    """
+    Convolutional network to encode the images. It is basically the first half of a U-Net.
+    """
+
     def __init__(self, in_channels=3, init_features=8):
         super(ConvolutionalNetwork, self).__init__()
 
@@ -76,6 +84,10 @@ class ConvolutionalNetwork(nn.Module):
 
 
 class GatingNetwork(nn.Module):
+    """
+    Gate network to weight the predictions of the CNN and the MLP.
+    """
+
     def __init__(self, maps, width, height):
         super(GatingNetwork, self).__init__()
         self.conv = nn.Conv2d(maps, 1, kernel_size=1, padding=0, stride=1)
@@ -92,6 +104,10 @@ class GatingNetwork(nn.Module):
 
 
 class ClassifierNetwork(nn.Module):
+    """
+    Classifier network for the CNN.
+    """
+
     def __init__(self, maps, width, height):
         super(ClassifierNetwork, self).__init__()
         self.conv = nn.Conv2d(maps, 1, kernel_size=1, padding=0, stride=1)
@@ -101,9 +117,13 @@ class ClassifierNetwork(nn.Module):
         return self.linear(self.conv(feature_maps).reshape(feature_maps.size(0), -1))
 
 
-class MOEModel(nn.Module):
+class MixtureOfExperts(nn.Module):
+    """
+    Mixture of experts model. It is a combination of an images encoder (ConvoluationalNetwork), a classifier (ClassifierNetwork), a gate (GatingNetwork) and a MLP.
+    """
+
     def __init__(self):
-        super(MOEModel, self).__init__()
+        super(MixtureOfExperts, self).__init__()
         self.cnn = ConvolutionalNetwork()
         self.cnn_classifier = ClassifierNetwork(256, 3, 3)
         self.gate = GatingNetwork(256, 3, 3)
@@ -118,7 +138,9 @@ class MOEModel(nn.Module):
         images, annotations, batch = x
 
         features_maps = self.cnn(images)
-        features_maps = scatter_mean(features_maps, batch, dim=0)
+        features_maps = scatter_mean(
+            features_maps, batch, dim=0
+        )  # Pool the features maps for each patient using 'batch'
         y_cnn = self.cnn_classifier(features_maps)
 
         y_mlp = self.mlp(annotations)[:, [0]]

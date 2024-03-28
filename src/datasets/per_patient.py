@@ -1,3 +1,7 @@
+"""
+PerPatientDataset class definition and related functions. This class is used to create a dataset where each patient is a sample. This is useful for models that make use of all the images of a patient to make a prediction. The batching process is more complex due to the varying number of images per patient.
+"""
+
 import os
 from typing import List
 
@@ -32,6 +36,19 @@ def process_image(img_path, segment):
 
 
 class PerPatientDataset(Dataset):
+    """
+    PyTorch custom dataset for the per_patient dataset. Each sample is a patient, and the target is the label of the patient.
+
+    Args:
+        patients_paths (List[str]): List of paths to the patients' directories.
+        df (pd.DataFrame): DataFrame containing the annotations.
+        split (str): Split of the dataset (train, val, test).
+        name (str): Name of the dataset.
+        image_crop_size (int): Size of the cropped image.
+        max_images (int): Maximum number of images per patient (not used).
+        segment (bool): Whether to segment the images or not (not used).
+    """
+
     def __init__(
         self,
         patients_paths: List[str],
@@ -89,6 +106,9 @@ class PerPatientDataset(Dataset):
         )
 
     def process(self):
+        """
+        Preprocess the data and save it to disk.
+        """
         for idx in tqdm(range(len(self.patients_paths)), desc="Preprocessing data"):
             patient_id = get_patient_id_from_patient_path(self.patients_paths[idx])
             annotations = self.df.loc[(self.df["ID"] == patient_id)][
@@ -101,6 +121,7 @@ class PerPatientDataset(Dataset):
 
             patient_images_paths = get_patient_images_paths(self.patients_paths[idx])
 
+            # Parallelize the image processing for each patient
             ids = [
                 process_image.remote(path, segment=self.segment)
                 for path in patient_images_paths
@@ -128,18 +149,23 @@ class PerPatientDataset(Dataset):
             images = images[indices]
 
         transformed_images = []
-        for img in images:
+        for img in images:  # torchvision transforms are not batch-friendly
             transformed_images.append(self.online_transform(img))
 
         return (
             torch.stack(transformed_images),
             annotations,
-            torch.zeros(images.shape[0], dtype=torch.long),
+            torch.zeros(
+                images.shape[0], dtype=torch.long
+            ),  # all images are from the same patient so the batch is the same
             label,
         )
 
 
 def batch_from_data_list(data_list: List[torch.LongTensor]):
+    """
+    Given a list of batch index, return a new batch index with cumulated values (i.e. we can identify which image belongs to which patient).
+    """
     cumulated = -1
     result = []
     for batch in data_list:
@@ -154,6 +180,9 @@ def batch_from_data_list(data_list: List[torch.LongTensor]):
 
 
 def collate(data):
+    """
+    Custom collate function for the per_patient dataset. This function is needed because the number of images per patient is variable.
+    """
     images, annotations, batch, labels = zip(*data)
     return (
         torch.concatenate(images),

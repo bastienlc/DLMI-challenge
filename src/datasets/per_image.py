@@ -1,3 +1,7 @@
+"""
+PerImageDataset class definition.
+"""
+
 import os
 from typing import List
 
@@ -18,18 +22,27 @@ from ..utils import (
 
 
 class PerImageDataset(Dataset):
+    """
+    PyTorch custom dataset for the per_image dataset. Each sample is an image, and the target is the label of the patient.
+
+    Args:
+        patients_paths (List[str]): List of paths to the patients' directories.
+        df (pd.DataFrame): DataFrame containing the annotations.
+        split (str): Split of the dataset (train, val, test).
+        name (str): Name of the dataset.
+        image_crop_size (int): Size of the cropped image.
+    """
+
     def __init__(
         self,
         patients_paths: List[str],
         df,
-        device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
         split: str = "train",
         name="per_image",
         image_crop_size=112,
     ):
         self.patients_paths = patients_paths
         self.df = df
-        self.device = device
         self.split = split
         self.name = name
 
@@ -73,6 +86,9 @@ class PerImageDataset(Dataset):
         )
 
     def process(self):
+        """
+        Preprocess the data and save it to disk.
+        """
         idx = 0
         for k in tqdm(range(len(self.patients_paths)), desc="Preprocessing data"):
             patient_id = get_patient_id_from_patient_path(self.patients_paths[k])

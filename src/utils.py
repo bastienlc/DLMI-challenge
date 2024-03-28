@@ -161,6 +161,9 @@ class TrainLogger:
 
 
 def to_device(data, device):
+    """
+    Send batch to device
+    """
     images, annotations, batch, labels = data
     return (
         images.to(device),
@@ -171,6 +174,9 @@ def to_device(data, device):
 
 
 def save(y_pred, index, file_name="solution.csv"):
+    """
+    Save predictions to a csv file
+    """
     y_pred = pd.DataFrame(y_pred, columns=["Predicted"])
     y_pred["Id"] = index
     y_pred.to_csv(
@@ -183,21 +189,21 @@ def save(y_pred, index, file_name="solution.csv"):
 
 def get_patient_id_from_patient_path(path):
     """
-    return patient id from patient path
+    Return patient id from patient path
     """
     return path.split("/")[-1]
 
 
 def get_patient_id_from_image_path(path):
     """
-    return patient id from patient path
+    Return patient id from patient path
     """
     return path.split("/")[-2]
 
 
 def get_patients_paths(fold: str):
     """
-    return paths of training or testing patients
+    Return paths of training or testing patients
     """
     if fold == "train":
         paths = glob.glob(os.path.join(CONFIG.PATH_TRS, "P*"))
@@ -209,7 +215,7 @@ def get_patients_paths(fold: str):
 
 def get_patient_images_paths(patient_path: str):
     """
-    return paths of images for a given patient
+    Return paths of images for a given patient
     """
     paths = glob.glob(os.path.join(patient_path, "*.jpg"))
 
@@ -234,6 +240,10 @@ def get_paths_and_labels(fold: str):
 
 
 class RandomDiscreteRotation:
+    """
+    Torchvision rotation transform with discrete angles
+    """
+
     def __init__(self, angles: List[int]):
         self.angles = angles
 
@@ -243,6 +253,9 @@ class RandomDiscreteRotation:
 
 
 def segment_lymphocyt(image: np.ndarray) -> np.ndarray:
+    """
+    Segment a lymphocyt image. The returned image has a beige background and the lymphocyt in the original colors.
+    """
     saturation = cv2.cvtColor(image.astype(np.float32), cv2.COLOR_BGR2HSV)[:, :, 1]
 
     _, label, center = cv2.kmeans(

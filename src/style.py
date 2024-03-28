@@ -37,6 +37,9 @@ plt.rcParams.update(mpl.rcParams)
 
 
 def color_palette():
+    """
+    Display a beautiful color palette to choose from.
+    """
     _, ax = plt.subplots(1, len(COLORS), figsize=(20, 2.5))
     for i, color in enumerate(COLORS):
         ax[i].set_facecolor(color)

@@ -11,6 +11,9 @@ from .utils import get_patients_paths
 
 
 def DOB_to_age(date_str):
+    """
+    Parse date of birth and return age in years
+    """
     if "/" in date_str:
         bday = datetime.strptime(date_str, "%m/%d/%Y")
     elif "-" in date_str:
@@ -21,6 +24,9 @@ def DOB_to_age(date_str):
 
 
 def f_to_F(gender):
+    """
+    Transform f to F
+    """
     if "f" in gender:
         gender = "F"
     return gender
@@ -28,7 +34,7 @@ def f_to_F(gender):
 
 def preprocess_annotations(df, normalize=True):
     """
-    preprocessing steps on annotation csv
+    Preprocessing steps on annotation csv : apply DOB_to_age, f_to_F, and min-max scaling
     """
 
     # create age
@@ -50,6 +56,9 @@ def preprocess_annotations(df, normalize=True):
 def get_data_loaders(
     test_size=0.2, shuffle=True, batch_size=16, dataset=PerPatientDataset, paths=None
 ):
+    """
+    Return train and validation dataloaders, depending on the dataset used. The splits are stratified on the labels. If paths are passed, the function will use them instead of splitting the data (for cross-validation).
+    """
     annotations = preprocess_annotations(pd.read_csv(CONFIG.PATH_TRS_AN))
     annotations.sort_values("ID", inplace=True)
 
@@ -96,6 +105,9 @@ def get_data_loaders(
 
 
 def get_test_dataloader(batch_size=16, dataset=PerPatientDataset):
+    """
+    Return test dataloader depending on the dataset used.
+    """
     annotations = preprocess_annotations(pd.read_csv(CONFIG.PATH_TS_AN))
     patients_paths = get_patients_paths("test")
     test_dataset = dataset(patients_paths, annotations, split="test")
