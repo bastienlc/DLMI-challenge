@@ -9,7 +9,6 @@ import numpy as np
 import pandas as pd
 import torch
 import torchvision.transforms.functional as TF
-from PIL import Image
 from skimage.morphology import (
     area_closing,
     area_opening,
@@ -17,7 +16,6 @@ from skimage.morphology import (
     convex_hull_image,
 )
 from torch.utils.tensorboard import SummaryWriter
-from tqdm import tqdm
 
 from .config import CONFIG
 
@@ -172,17 +170,6 @@ def to_device(data, device):
     )
 
 
-def predict(model, loader, device):
-    model.eval()
-    predictions = []
-    with torch.no_grad():
-        for data in loader:
-            data = to_device(data, device)
-            output = model(data[0:-1])
-            predictions.append(torch.argmax(output, dim=1).cpu().numpy())
-    return np.concatenate(predictions)
-
-
 def save(y_pred, index, file_name="solution.csv"):
     y_pred = pd.DataFrame(y_pred, columns=["Predicted"])
     y_pred["Id"] = index
@@ -227,6 +214,23 @@ def get_patient_images_paths(patient_path: str):
     paths = glob.glob(os.path.join(patient_path, "*.jpg"))
 
     return paths
+
+
+def get_paths_and_labels(fold: str):
+    """
+    Return paths of patients with their corresponding labels. Used for stratified cross_validation.
+    """
+    annotations = pd.read_csv(CONFIG.PATH_TRS_AN)
+    annotations.sort_values("ID", inplace=True)
+
+    paths = get_patients_paths(fold)
+    labels = annotations[
+        annotations["ID"].isin(
+            [get_patient_id_from_patient_path(path) for path in paths]
+        )
+    ][CONFIG.col_label].values
+
+    return paths, labels
 
 
 class RandomDiscreteRotation:

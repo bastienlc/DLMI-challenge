@@ -31,4 +31,6 @@ def seed_everything(seed: int):
     os.environ["PYTHONHASHSEED"] = str(seed)
 
 
-seed_everything(CONFIG.SEED)
+seed_everything(
+    CONFIG.SEED
+)  # Reproducibility; still make sure to pass CONFIG.SEED to split functions

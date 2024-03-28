@@ -5,7 +5,6 @@ from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
 
 from .config import CONFIG
-from .datasets.custom_labels import CustomLabelsDataset
 from .datasets.per_image import PerImageDataset
 from .datasets.per_patient import PerPatientDataset, collate
 from .utils import get_patients_paths
@@ -49,28 +48,29 @@ def preprocess_annotations(df, normalize=True):
 
 
 def get_data_loaders(
-    test_size=0.2, shuffle=True, batch_size=16, dataset=PerPatientDataset
+    test_size=0.2, shuffle=True, batch_size=16, dataset=PerPatientDataset, paths=None
 ):
     annotations = preprocess_annotations(pd.read_csv(CONFIG.PATH_TRS_AN))
     annotations.sort_values("ID", inplace=True)
-    patients_paths = get_patients_paths("train")
-    patients_paths.sort()
 
-    train_paths, val_paths = train_test_split(
-        patients_paths,
-        test_size=test_size,
-        random_state=CONFIG.SEED,
-        stratify=annotations[CONFIG.col_label].values,
-    )
+    if paths is None:
+        patients_paths = get_patients_paths("train")
+        patients_paths.sort()
+        train_paths, val_paths = train_test_split(
+            patients_paths,
+            test_size=test_size,
+            random_state=CONFIG.SEED,
+            stratify=annotations[CONFIG.col_label].values,
+        )
+    else:
+        train_paths, val_paths = paths
 
     train_dataset = dataset(train_paths, annotations, split="train")
     val_dataset = dataset(val_paths, annotations, split="val")
 
     if issubclass(dataset, PerPatientDataset):
         collate_fn = collate
-    elif issubclass(dataset, PerImageDataset) or issubclass(
-        dataset, CustomLabelsDataset
-    ):
+    elif issubclass(dataset, PerImageDataset):
         collate_fn = None
     else:
         raise ValueError("Unknown dataset")
@@ -102,9 +102,7 @@ def get_test_dataloader(batch_size=16, dataset=PerPatientDataset):
 
     if issubclass(dataset, PerPatientDataset):
         collate_fn = collate
-    elif issubclass(dataset, PerImageDataset) or issubclass(
-        dataset, CustomLabelsDataset
-    ):
+    elif issubclass(dataset, PerImageDataset):
         collate_fn = None
     else:
         raise ValueError("Unknown dataset")

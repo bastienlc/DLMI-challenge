@@ -18,6 +18,7 @@ def train(
     load: Union[str, None] = None,
     ratio: float = 1,
     device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+    loaders: Union[None, torch.utils.data.DataLoader] = None,
 ):
     logger = TrainLogger(
         model, optimizer, {"epochs": epochs, "batch_size": batch_size}, load=load
@@ -30,7 +31,12 @@ def train(
         reduction="mean",
     )
 
-    train_loader, val_loader = get_data_loaders(batch_size=batch_size, dataset=dataset)
+    if loaders is None:
+        train_loader, val_loader = get_data_loaders(
+            batch_size=batch_size, dataset=dataset
+        )
+    else:
+        train_loader, val_loader = loaders
     n_train = len(train_loader.dataset)
     n_val = len(val_loader.dataset)
 

@@ -4,9 +4,8 @@ from sklearn.base import BaseEstimator
 from sklearn.metrics import balanced_accuracy_score
 from sklearn.model_selection import StratifiedKFold
 
-from style import COLORS
-
 from .config import CONFIG
+from .style import COLORS
 
 
 def custom_cross_validate(model: BaseEstimator, X: np.ndarray, y: np.ndarray, k_fold=5):
@@ -37,7 +36,7 @@ def custom_cross_validate(model: BaseEstimator, X: np.ndarray, y: np.ndarray, k_
 
 
 def plot_comparison(models_scores, labels):
-    _, ax = plt.subplots(figsize=(40, 20))
+    _, ax = plt.subplots(figsize=(20, 10))
     box_plot = ax.boxplot(
         models_scores,
         labels=labels,
@@ -64,7 +63,7 @@ def plot_comparison(models_scores, labels):
     ax.plot([], [], color=COLORS[3], label="Median")
     ax.plot([], [], color=COLORS[6], label="Mean")
     ax.set_yticks(np.arange(0, 1.1, 0.05))
-    ax.set_ylim(0.5, 1.0)
+    ax.set_ylim(0.6, 1.0)
     plt.xticks(rotation=45, ha="right", rotation_mode="anchor")
     plt.legend()
     plt.tight_layout()
