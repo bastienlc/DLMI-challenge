@@ -1,6 +1,6 @@
 # DLMI-challenge
 
-[This repository](https://github.com/bastienlc/DLMI-challenge) contains our work for the challenge of the DLMI course at ENS Paris-Saclay where [@JoachimCOLLIN](https://github.com/JoachimCOLLIN) and I reached a score of 0.0.89090.
+[This repository](https://github.com/bastienlc/DLMI-challenge) contains our work for the challenge of the DLMI course at ENS Paris-Saclay where [@JoachimCOLLIN](https://github.com/JoachimCOLLIN) and I reached a score of 0.89090.
 
 The goal of the challenge was to predict the reactive or malignant nature of lymphocytosis in patients.
 
