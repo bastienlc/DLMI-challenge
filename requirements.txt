@@ -5,3 +5,7 @@ torch
 torchvision
 matplotlib
 tqdm
+scikit-image
+torch_scatter
+ray
+opencv-python
